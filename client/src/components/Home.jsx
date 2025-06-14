@@ -1,32 +1,15 @@
-import { useEffect } from "react";
+import useSocketConnection from "../socket_client/useSocketConnection";
 import ChatWindow from "./ChatWindow";
 import SideBar from "./Sidebar";
-import socket from "../socket_client/socket";
-import { useSetRecoilState } from "recoil";
-import { chatState } from "../recoil/chats";
-import { useAuth } from "../context/AuthContext";
 
 const Home = () => {
-  const setChats=useSetRecoilState(chatState);
-  const user =useAuth();
-
-  useEffect(()=>{
-    // if(!socket.connected){
-    //   socket.connect();
-    // }
-    return () => {
-      if (socket.connected) {
-        socket.disconnect();
-      }
-      console.log("Socket.IO disconnected on Home unmount.");
-    };
-  },[]);
+  const socketInstance = useSocketConnection();
 
   return (
       <>
         <div className="flex h-lvh">
           <SideBar />
-          <ChatWindow />
+          <ChatWindow socket={socketInstance}/>
         </div>
       </>
   )

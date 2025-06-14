@@ -1,8 +1,7 @@
 import { UserPlus } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-import {useAuth} from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 
 const Register = ({islogin, setIsLogin}) => {
   const [ userdata, setUserdata ]= useState({ name : "", username : "", password : "", email : ""});
@@ -93,7 +92,7 @@ const Register = ({islogin, setIsLogin}) => {
             className=" flex h-12 justify-center items-center gap-2 w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
             type="button"
           >
-            {loading ? "Processing..":"Register"} {loading && <UserPlus />}
+            {loading ? "Processing..":"Register"} {!loading && <UserPlus />}
           </button>
         </div>
         <div className="py-3 text-center">

@@ -10,9 +10,8 @@ const SideBar = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeChat, setActiveChat] = useRecoilState(activeChatId);
     const chats = useRecoilValue(chatState);
-    // Initialize searchResults as null, as it will be an object or null
     const [searchResults, setSearchResults] = useState(null);
-    const [searchError, setSearchError] = useState(null); // To handle search errors
+    const [searchError, setSearchError] = useState(null); 
     const { user, logout } = useAuth();
     const { addUser } = useUserActions();
 
@@ -56,8 +55,7 @@ const SideBar = () => {
                 setSearchError(error.response.data.message);
             } else if (error.response && error.response.status === 401) {
                 setSearchError('You are not authorized. Please log in.');
-            }
-            else {
+            } else {
                 setSearchError('An error occurred during search. Please try again.');
             }
             setSearchResults(null);
@@ -72,18 +70,18 @@ const SideBar = () => {
 
     return (
         <>
-            <div className="flex flex-col h-screen bg-gray-50 w-1/3">
-                <div className="flex w-full h-20 border-b-2 justify-around items-center">
+            <div className="flex flex-col h-screen bg-gray-50 w-1/3 border-r-1">
+                <div className="h-20 flex items-center justify-between p-4 bg-white shadow">
+                    <h1 className="text-xl font-bold">ChatApp</h1>
+                    <h1>Hello, {user?.fullname}</h1> 
+                </div>
+                <div className="flex w-full h-20 border-b justify-around items-center">
                     <Bookmark className="bg-gray-300 p-1 h-10 w-10 m-2 cursor-pointer rounded-lg hover:text-blue-500" />
                     <Users className="bg-gray-300 p-1 h-10 w-10 m-2 cursor-pointer rounded-lg hover:text-blue-500" />
                     <button onClick={handleLogOut}>
                         <LogOut className="bg-gray-300 p-1 h-10 w-10 m-2 cursor-pointer rounded-lg hover:text-blue-500" />
                     </button>
                     <Cog className="bg-gray-300 p-1 h-10 w-10 m-2 cursor-pointer rounded-lg hover:text-blue-500" />
-                </div>
-                <div className=" flex items-center justify-between p-4 bg-white shadow">
-                    <h1 className="text-lg font-bold">ChatApp</h1>
-                    <h1>Hello, {user?.fullname}</h1> {/* Added optional chaining for user */}
                 </div>
                 {/* options */}
                 <div className="flex p-2 bg-gray-100 border-b">
@@ -93,7 +91,7 @@ const SideBar = () => {
                     <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-500">More</button>
                 </div>
                 {/* search box */}
-                <div className="border-b-2 flex flex-col w-full"> {/* Changed to flex-col to stack search and results */}
+                <div className="border-b flex flex-col w-full"> {/* Changed to flex-col to stack search and results */}
                     <div className="flex w-full">
                         <input
                             type="text"
@@ -107,12 +105,10 @@ const SideBar = () => {
                         </button>
                     </div>
                     {/* Display search results or error message */}
-                    {searchResults && ( // Check if searchResults is not null
+                    {searchResults && ( 
                         <div className="flex items-center justify-between p-2 m-1 bg-blue-100 rounded-md">
-                            {/* Access username from the searchResults object */}
                             <span className="font-semibold text-blue-800">{searchResults.username}</span>
                             <button
-                                // Pass the entire searchResults object to handleAddUser
                                 onClick={() => handleAddUser(searchResults)}
                                 className="ml-2 p-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
                                 title={`Add Contact`}

@@ -12,19 +12,7 @@ const socket = io(SERVER_URL,{
     token: getToken(),
   },
   withCredentials:true,
-  autoConnect:true
+  autoConnect:false
 })
-
-socket.on("connect", () => {
-  console.log("Socket.IO connected:", socket.id);
-});
-
-socket.on("disconnect", (reason) => {
-  console.log("Socket.IO disconnected:", reason);
-});
-
-socket.on("connect_error", (error) => {
-  console.error("Socket.IO connection error:", error.message);
-});
 
 export default socket;
