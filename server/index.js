@@ -15,7 +15,7 @@ function generateMessageId() {
 }
 
 let redisClient;
-let sessionStore; // Will be initialized in startServer
+let sessionStore; 
 
 const PORT = process.env.PORT || 5000;
 
@@ -94,7 +94,7 @@ io.on('connection', async (socket) => {
     }
 
     socket.on('send-message', async (payload) => {
-        const { recieverId, tempMessageId, message } = payload;
+        const { recieverId, tempMessageId, message, imageData } = payload;
         const timestamp = new Date().toLocaleTimeString();
         let msgToStore = {
             messageId: generateMessageId(),
@@ -106,6 +106,10 @@ io.on('connection', async (socket) => {
             messageType: "text",
             status: "sent"
         };
+        if(imageData){
+            msgToStore.messageType="image";
+            msgToStore.imageUrl=imageData;
+        }
 
         if (sessionStore.isUserOnline(recieverId)) {
             const [recieverSocketId] = sessionStore.findSocketsForUser(recieverId);
@@ -123,7 +127,12 @@ io.on('connection', async (socket) => {
             msgToStore.status = 'sent';
         }
 
-        let ackMessage = { ...msgToStore, chatId:recieverId + "_" + socket.user._id, tempMessageId };
+        let ackMessage = { 
+            messageId:msgToStore.messageId, 
+            chatId: recieverId + "_" + socket.user._id,
+            tempMessageId,
+            status:msgToStore.status
+        };
         socket.emit('ack-message', ackMessage);
     });
 
@@ -156,7 +165,7 @@ async function startServer() {
     try {
         await connectDB();
         redisClient = await connectRedis();
-        sessionStore = new SessionStore(); // Initialize sessionStore here after redisClient is available
+        sessionStore = new SessionStore();
 
         server.listen(PORT, () => {
             console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
@@ -170,7 +179,7 @@ async function startServer() {
 }
 
 app.get('/', (req, res) => {
-    res.send('Chat app backend is running!');
+    res.send('Backend is LIVE!');
 });
 
 startServer();
