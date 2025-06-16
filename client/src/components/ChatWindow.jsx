@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRecoilValue } from "recoil"; 
 import { activeChatId, chatState } from "../recoil/chats";
-import { SendHorizontal, Check, CheckCheck, Clock } from "lucide-react";
+import { SendHorizontal, Check, CheckCheck, Clock, Paperclip, XCircle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useUserActions } from "../utils/useUserActions";
 import useSocketEvents from "../socket_client/useSocketEvent";
@@ -15,6 +15,8 @@ const ChatWindow = ({socket}) => {
   const messagesEndRef = useRef(null);
   const { user } = useAuth();
   const { addMessage, changeName } = useUserActions();
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
 
   useSocketEvents(); 
 
@@ -33,7 +35,16 @@ const ChatWindow = ({socket}) => {
         socket.emit('read-message', lastMessage.id, lastMessage.sender);
       }
     }
-  }, [activeChatIdState, activeChat?.messages, user._id]);
+  }, [activeChat?.messages, user._id]);
+
+  const readFileAsBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
   
   const getStatusComponent = (status) => {
     switch(status){
@@ -48,15 +59,28 @@ const ChatWindow = ({socket}) => {
     }
   }
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (messageInput.trim() && activeChatIdState) {
       const participants = activeChatIdState.split('_').filter(id => id !== user._id);
       const tempMessageId= `temp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       const payload = {
         recieverId :participants[0],
         tempMessageId,
-        message:messageInput.trim()
+        message:messageInput.trim(),
+        messageType:"text"
       }; 
+
+      if (selectedImageFile) {
+        try {
+          const imageData = await readFileAsBase64(selectedImageFile);
+          payload.messageType = "image";
+          payload.imageData = imageData;
+        } catch (error) {
+          console.error("Error reading image file:", error);
+          console.error("Failed to read image file. Please try again.");
+          return; 
+        }
+      }
       socket.emit("send-message", payload);
 
       addMessage({
@@ -65,10 +89,41 @@ const ChatWindow = ({socket}) => {
         senderId: user._id,
         senderUsername: user.username,
         message: messageInput.trim(),
-        messageType: "text",
-        status: "sending" 
+        messageType: payload.messageType,
+        status: "sending",
+        ...(payload.imageData && { imageUrl: payload.imageData })
       });
       setMessageInput("");
+      clearSelectedImage();
+    }
+  };
+
+  const handleFileChange = (event) => {
+    if (event.target.files && event.target.files.length > 0) {
+      const file = event.target.files[0];
+      if (file.type.startsWith('image/')) {
+        setSelectedImageFile(file);
+        setImagePreviewUrl(URL.createObjectURL(file)); 
+      } else {
+        console.error("Please select an image file.");
+        setSelectedImageFile(null);
+        setImagePreviewUrl(null);
+        event.target.value = null;
+      }
+    } else {
+      clearSelectedImage();
+    }
+  };
+
+  const clearSelectedImage = () => {
+    setSelectedImageFile(null);
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl); 
+      setImagePreviewUrl(null);
+    }
+    const fileInput = document.getElementById('fileUpload');
+    if (fileInput) {
+      fileInput.value = null;
     }
   };
 
@@ -136,7 +191,7 @@ const ChatWindow = ({socket}) => {
         </button>
       </div>
 
-      {/* Username Change Dialog (Modal) */}
+      {/* Username Change modal */}
       {isDialogOpen && (
         <div className="relative inset-0 bg-blur-2xl h-full bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm transform scale-100 transition-transform duration-300 ease-out">
@@ -174,9 +229,9 @@ const ChatWindow = ({socket}) => {
 
       {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto" ref={messagesEndRef}>
-        {activeChat.messages?.map((message, index) => (
+        {activeChat.messages?.map((message) => (
           <div
-            key={message.id} 
+            key={message.id}
             className={`flex ${
               message.sender === user._id ? "justify-end" : "justify-start"
             } mb-4`}
@@ -186,18 +241,34 @@ const ChatWindow = ({socket}) => {
                 message.sender === user._id
                   ? "bg-blue-500 text-white"
                   : "bg-gray-100 text-gray-800"
-              }`}
+              } relative`}
             >
-              {getStatusComponent(message.status)}
-              {message.isAudio ? (
-                <div className="flex items-center">
-                  <span className="mr-2">{message.text}</span>
-                  <button className="p-2 bg-blue-700 text-white rounded-full">
-                    ▶
-                  </button>
+              <div className="text-xs absolute bottom-1 right-2 text-gray-300">
+                  {getStatusComponent(message.status)}
+              </div>
+              {message.type === "image" && message.imageUrl && (
+                <div className="mb-2">
+                  <img
+                    src={message.imageUrl}
+                    alt="Sent image"
+                    className="max-w-full h-auto rounded-md object-cover bg-white"
+                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/150x100/eeeeee/333333?text=Image+Error'; }}
+                  />
                 </div>
-              ) : (
-                message.text
+              )}
+              {message.text && (
+                <div className={message.messageType === "image" ? "mt-2" : ""}>
+                    {message.isAudio ? (
+                        <div className="flex items-center">
+                            <span className="mr-2">{message.text}</span>
+                            <button className="p-2 bg-blue-700 text-white rounded-full">
+                                ▶
+                            </button>
+                        </div>
+                    ) : (
+                        message.text
+                    )}
+                </div>
               )}
             </div>
           </div>
@@ -205,7 +276,24 @@ const ChatWindow = ({socket}) => {
       </div>
 
       {/* Input Box */}
-      <div className="p-4 border-t border-gray-200">
+      <div id="hell ya" className="p-4 border-t border-gray-200 flex flex-col">
+        {imagePreviewUrl && (
+          <div className="relative mb-4 p-2 border border-gray-300 rounded-lg bg-gray-50">
+            <img
+              src={imagePreviewUrl}
+              alt="Preview"
+              className="max-w-full h-70 object-contain mx-auto rounded-md"
+            />
+            <button
+              onClick={clearSelectedImage}
+              className="absolute top-1 right-1 p-1 bg-white rounded-full shadow-md hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition"
+              aria-label="Clear image"
+            >
+              <XCircle size={20} />
+            </button>
+          </div>
+        )}
+
         <div className="flex items-center">
           <input
             value={messageInput}
@@ -214,14 +302,30 @@ const ChatWindow = ({socket}) => {
               if (e.key === "Enter") sendMessage();
             }}
             type="text"
-            placeholder="Type a message..."
-            className="flex-1 p-3 border rounded-lg shadow-sm focus:outline-none"
+            placeholder={selectedImageFile ? "Add a caption..." : "Type a message..."}
+            className="flex-1 p-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
+          <input
+            type="file"
+            id="fileUpload"
+            className="hidden"
+            name="fileUpload"
+            onChange={handleFileChange}
+            accept="image/*" 
+          />
+          <label
+            htmlFor="fileUpload"
+            className="ml-4 p-3 border border-transparent text-base font-medium rounded-full text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer transition ease-in-out duration-150 shadow-md"
+            aria-label="Attach file"
+          >
+            <Paperclip size={20} />
+          </label>
           <button
             onClick={sendMessage}
-            className="ml-4 p-3 bg-blue-500 text-white rounded-full"
+            className="ml-4 p-3 bg-blue-500 text-white rounded-full cursor-pointer hover:bg-blue-600 transition ease-in-out duration-150 shadow-md"
+            aria-label="Send message"
           >
-            <SendHorizontal />
+            <SendHorizontal size={20} />
           </button>
         </div>
       </div>

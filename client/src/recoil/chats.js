@@ -17,7 +17,7 @@ const statusPriority = {
   seen: 3
 };
 
-function shouldUpdateStatus(current, incoming) {
+const shouldUpdateStatus = (current, incoming) => {
   return statusPriority[current] < statusPriority[incoming];
 }
 
@@ -103,11 +103,10 @@ export const manageMessagesSelector = selector({
         timestamp,
         messageType,
         status,
+        imageUrl,
         avatarUrl,
         avatarColor
       } = payload;
-
-      console.log(chatId);
 
       let chatFound = false;
       updatedChats = updatedChats.map(chat => {
@@ -123,7 +122,8 @@ export const manageMessagesSelector = selector({
               text: message,
               timestamp,
               type: messageType,
-              status: status
+              status: status,
+              ...(messageType === 'image' && imageUrl && { imageUrl })
             }],
             lastMessage: message,
             lastMessageTime: timestamp,
@@ -150,7 +150,8 @@ export const manageMessagesSelector = selector({
               text: message,
               timestamp,
               type: messageType,
-              status: status
+              status: status,
+              ...(messageType === 'image' && imageUrl && { imageUrl })
             }]
           }
         ];
