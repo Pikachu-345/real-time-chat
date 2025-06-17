@@ -49,13 +49,13 @@ const ChatWindow = ({socket}) => {
   const getStatusComponent = (status) => {
     switch(status){
       case "sending":
-        return <Clock />;
+        return <div className="h-2 w-2 rounded-full bg-red-500"/>;
       case "sent":
-        return <Check />;
+        return <div className="h-2 w-2 rounded-full bg-white border-1"/>;
       case "delivered":
-        return <CheckCheck />;
+        return <div className="h-2 w-2 rounded-full bg-gray-500"/>;
       case "seen":
-        return <CheckCheck color="#0548e6"/>;
+        return <div className="h-2 w-2 rounded-full bg-blue-500"/>;
     }
   }
 
@@ -234,18 +234,15 @@ const ChatWindow = ({socket}) => {
             key={message.id}
             className={`flex ${
               message.sender === user._id ? "justify-end" : "justify-start"
-            } mb-4`}
+            } mb-1 items-center`}
           >
             <div
-              className={`max-w-xs p-3 rounded-lg ${
+              className={`max-w-xs py-2 px-3 rounded-lg ${
                 message.sender === user._id
                   ? "bg-blue-500 text-white"
                   : "bg-gray-100 text-gray-800"
               } relative`}
             >
-              <div className="text-xs absolute bottom-1 right-2 text-gray-300">
-                  {getStatusComponent(message.status)}
-              </div>
               {message.type === "image" && message.imageUrl && (
                 <div className="mb-2">
                   <img
@@ -271,12 +268,18 @@ const ChatWindow = ({socket}) => {
                 </div>
               )}
             </div>
+            {
+            message.sender===user._id && 
+            <div className="text-xs text-white-300 rounded-full m-1">
+              {getStatusComponent(message.status)}
+            </div>
+            }
           </div>
         ))}
       </div>
 
       {/* Input Box */}
-      <div id="hell ya" className="p-4 border-t border-gray-200 flex flex-col">
+      <div className="p-4 border-t border-gray-200 flex flex-col">
         {imagePreviewUrl && (
           <div className="relative mb-4 p-2 border border-gray-300 rounded-lg bg-gray-50">
             <img
@@ -296,16 +299,6 @@ const ChatWindow = ({socket}) => {
 
         <div className="flex items-center">
           <input
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") sendMessage();
-            }}
-            type="text"
-            placeholder={selectedImageFile ? "Add a caption..." : "Type a message..."}
-            className="flex-1 p-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-          <input
             type="file"
             id="fileUpload"
             className="hidden"
@@ -315,11 +308,21 @@ const ChatWindow = ({socket}) => {
           />
           <label
             htmlFor="fileUpload"
-            className="ml-4 p-3 border border-transparent text-base font-medium rounded-full text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer transition ease-in-out duration-150 shadow-md"
+            className="mr-4 p-3 border border-transparent text-base font-medium rounded-full text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer transition ease-in-out duration-150 shadow-md"
             aria-label="Attach file"
           >
             <Paperclip size={20} />
           </label>
+          <input
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") sendMessage();
+            }}
+            type="text"
+            placeholder={selectedImageFile ? "Add a caption..." : "Type a message..."}
+            className="flex-1 p-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
           <button
             onClick={sendMessage}
             className="ml-4 p-3 bg-blue-500 text-white rounded-full cursor-pointer hover:bg-blue-600 transition ease-in-out duration-150 shadow-md"

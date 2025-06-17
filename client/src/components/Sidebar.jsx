@@ -5,6 +5,7 @@ import { activeChatId, chatState } from "../recoil/chats";
 import { useAuth } from "../context/AuthContext";
 import { searchRequest } from "../utils/user.util";
 import { useUserActions } from "../utils/useUserActions";
+import logo from "../assets/logo.png"
 
 const SideBar = () => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -72,7 +73,8 @@ const SideBar = () => {
         <>
             <div className="flex flex-col h-screen bg-gray-50 w-1/3 border-r-1">
                 <div className="h-20 flex items-center justify-between p-4 bg-white shadow">
-                    <h1 className="text-xl font-bold">ChatApp</h1>
+                    {/* <h1 className="text-xl font-bold">ChatApp</h1> */}
+                    <img src={logo} alt="logo" className="h-15 w-25"/>
                     <h1>Hello, {user?.fullname}</h1> 
                 </div>
                 <div className="flex w-full h-20 border-b justify-around items-center">
