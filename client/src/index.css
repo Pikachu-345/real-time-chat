@@ -5,9 +5,19 @@
   background-size: cover; 
   background-position: center; 
 }
+@utility light-bg-full {
+  background-image: url('./assets/white-bg-full.png');
+  background-size: cover; 
+  background-position: center; 
+}
 
 @utility dark-bg {
   background-image: url('./assets/black-bg.png');
+  background-size: cover; 
+  background-position: center; 
+}
+@utility dark-bg-full {
+  background-image: url('./assets/black-bg-full.png');
   background-size: cover; 
   background-position: center; 
 }

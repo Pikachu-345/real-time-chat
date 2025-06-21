@@ -1,24 +1,25 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useRecoilValue } from "recoil"; 
+import { useRecoilState, useRecoilValue } from "recoil";
 import { activeChatId, chatState } from "../recoil/chats";
-import { SendHorizontal, Check, CheckCheck, Clock, Paperclip, XCircle } from "lucide-react";
+import { SendHorizontal, Paperclip, XCircle, MoreVertical, ArrowLeft } from "lucide-react"; 
 import { useAuth } from "../context/AuthContext";
 import { useUserActions } from "../utils/useUserActions";
 import useSocketEvents from "../socket_client/useSocketEvent";
 
-const ChatWindow = ({socket}) => {
-  const activeChatIdState = useRecoilValue(activeChatId);
+const ChatWindow = ({ socket }) => {
+  const [showOptions, setShowOptions] = useState(false);
+  const [activeChatIdState,setActiveChatId] = useRecoilState(activeChatId);
   const chats = useRecoilValue(chatState);
   const [messageInput, setMessageInput] = useState("");
   const [newUsername, setNewUsername] = useState("");
-  const [isDialogOpen,setIsDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const { user } = useAuth();
   const { addMessage, changeName } = useUserActions();
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
 
-  useSocketEvents(); 
+  useSocketEvents();
 
   const activeChat = chats.find((chat) => chat.id === activeChatIdState);
 
@@ -35,7 +36,7 @@ const ChatWindow = ({socket}) => {
         socket.emit('read-message', lastMessage.id, lastMessage.sender);
       }
     }
-  }, [activeChat?.messages, user._id]);
+  }, [activeChat?.messages, user._id, socket]); 
 
   const readFileAsBase64 = (file) => {
     return new Promise((resolve, reject) => {
@@ -45,30 +46,32 @@ const ChatWindow = ({socket}) => {
       reader.readAsDataURL(file);
     });
   };
-  
+
   const getStatusComponent = (status) => {
-    switch(status){
+    switch (status) {
       case "sending":
-        return <div className="h-2 w-2 rounded-full bg-red-500"/>;
+        return <div className="h-2 w-2 rounded-full bg-red-500" />;
       case "sent":
-        return <div className="h-2 w-2 rounded-full bg-white border-1"/>;
+        return <div className="h-2 w-2 rounded-full bg-white border-1 border-gray-400" />; // Added border for visibility
       case "delivered":
-        return <div className="h-2 w-2 rounded-full bg-gray-500"/>;
+        return <div className="h-2 w-2 rounded-full bg-gray-500" />;
       case "seen":
-        return <div className="h-2 w-2 rounded-full bg-blue-500"/>;
+        return <div className="h-2 w-2 rounded-full bg-blue-500" />;
+      default:
+        return null;
     }
-  }
+  };
 
   const sendMessage = async () => {
-    if (messageInput.trim() && activeChatIdState) {
+    if ((messageInput.trim() || selectedImageFile) && activeChatIdState) { // Allow sending just an image
       const participants = activeChatIdState.split('_').filter(id => id !== user._id);
-      const tempMessageId= `temp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      const tempMessageId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       const payload = {
-        recieverId :participants[0],
+        recieverId: participants[0],
         tempMessageId,
-        message:messageInput.trim(),
-        messageType:"text"
-      }; 
+        message: messageInput.trim(),
+        messageType: "text"
+      };
 
       if (selectedImageFile) {
         try {
@@ -77,15 +80,16 @@ const ChatWindow = ({socket}) => {
           payload.imageData = imageData;
         } catch (error) {
           console.error("Error reading image file:", error);
-          console.error("Failed to read image file. Please try again.");
-          return; 
+          alert("Failed to read image file. Please try again."); // User-friendly alert
+          return;
         }
       }
+
       socket.emit("send-message", payload);
 
       addMessage({
         chatId: activeChatIdState,
-        messageId: tempMessageId, 
+        messageId: tempMessageId,
         senderId: user._id,
         senderUsername: user.username,
         message: messageInput.trim(),
@@ -103,9 +107,9 @@ const ChatWindow = ({socket}) => {
       const file = event.target.files[0];
       if (file.type.startsWith('image/')) {
         setSelectedImageFile(file);
-        setImagePreviewUrl(URL.createObjectURL(file)); 
+        setImagePreviewUrl(URL.createObjectURL(file));
       } else {
-        console.error("Please select an image file.");
+        alert("Please select an image file."); 
         setSelectedImageFile(null);
         setImagePreviewUrl(null);
         event.target.value = null;
@@ -118,7 +122,7 @@ const ChatWindow = ({socket}) => {
   const clearSelectedImage = () => {
     setSelectedImageFile(null);
     if (imagePreviewUrl) {
-      URL.revokeObjectURL(imagePreviewUrl); 
+      URL.revokeObjectURL(imagePreviewUrl);
       setImagePreviewUrl(null);
     }
     const fileInput = document.getElementById('fileUpload');
@@ -130,37 +134,46 @@ const ChatWindow = ({socket}) => {
   const handleConfirmChange = () => {
     if (newUsername.trim() !== '') {
       changeName(activeChat.id, newUsername.trim());
-      closeDialog(); 
+      closeDialog();
     } else {
-      console.log("Username cannot be empty!");
+      alert("Username cannot be empty!"); 
     }
   };
 
   const openDialog = () => {
-    setNewUsername(activeChat.name || ''); 
+    setNewUsername(activeChat.name || '');
     setIsDialogOpen(true);
   };
+
   const closeDialog = () => {
     setIsDialogOpen(false);
-    setNewUsername(''); 
+    setNewUsername('');
   };
 
   if (!activeChat) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[400px] w-full bg-gray-50 p-6 rounded-lg shadow-inner">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Welcome!</h2>
-        <p className="text-lg text-gray-600">
+      <div className="hidden sm:flex flex-col items-center justify-center h-full lg:w-3/4 bg-gray-50 p-6 shadow-inner text-center light-bg-full dark:dark-bg-full">
+        <div className="bg-white/80 dark:bg-black/80 px-20 py-10 rounded-4xl">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Welcome!</h2>
+          <p className="text-lg text-gray-600 dark:text-gray-100 max-w-md">
             Please select a chat from the sidebar to start a conversation or search for a username and add them to the chats list.
-        </p>
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-white w-full">
-      {/* Chat Header */}
-      <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 rounded-t-xl shadow-sm">
+    <div className={`flex flex-col h-full lg:w-3/4 md:w-1/2 ${activeChatIdState ? 'w-full sm:w-full' : 'hidden sm:flex'} bg-gray-600/70 light-bg-full dark:dark-bg-full relative`}>
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 bg-white/90 dark:bg-black/90 border-b border-gray-300 dark:border-gray-600 shadow-sm">
         <div className="flex items-center">
+          <button 
+            className="mr-2"
+            onClick={()=>setActiveChatId(null)}
+          >
+            <ArrowLeft className="text-white"/>
+          </button>
           <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
             {activeChat.avatarUrl ? (
               <img
@@ -171,39 +184,65 @@ const ChatWindow = ({socket}) => {
             ) : (
               <div
                 className="flex items-center justify-center w-full h-full text-white text-lg font-bold rounded-full"
-                style={{ backgroundColor: activeChat.avatarColor || '#3b82f6' }} // Use activeChat.avatarColor or a default blue
+                style={{ backgroundColor: activeChat.avatarColor || '#3b82f6' }}
               >
                 {activeChat.name && activeChat.name.length > 0 ? activeChat.name[0].toUpperCase() : '?'}
               </div>
             )}
           </div>
           <div className="ml-4">
-            <div className="text-lg font-semibold text-gray-800">{activeChat.name}</div>
-            <div className="text-sm text-gray-500">{activeChat.status || 'Offline'}</div>
+            <div className="text-lg font-semibold text-black dark:text-white">{activeChat.name}</div>
+            <div className="text-sm text-gray-800 dark:text-gray-100 flex items-center gap-1">
+              <div className="w-1.5 h-1.5 border-1 rounded-full bg-green-500"></div> 
+              {activeChat.status || 'Offline'}
+            </div>
           </div>
         </div>
 
         <button
           onClick={openDialog}
-          className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 transition-colors duration-200"
+          className="hidden sm:block px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 transition-colors duration-200"
         >
           Change Username
         </button>
+
+        <div className="relative sm:hidden">
+          <button
+            onClick={()=>setShowOptions(!showOptions)}
+            className="p-2 text-white hover:bg-gray-700 rounded-full"
+            aria-label="More options"
+          >
+            <MoreVertical size={24} />
+          </button>
+          {showOptions && (
+            <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-gray-700 rounded-md shadow-lg py-1 z-10">
+              <button
+                onClick={() => {
+                  openDialog();
+                  setShowOptions(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
+              >
+                Change Username
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Username Change modal */}
       {isDialogOpen && (
-        <div className="relative inset-0 bg-blur-2xl h-full bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm transform scale-100 transition-transform duration-300 ease-out">
-            <h3 className="text-xl font-bold mb-4 text-gray-800">Change Username</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"> {/* Fixed for full overlay */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm transform scale-100 transition-transform duration-300 ease-out text-gray-900 dark:text-gray-100">
+            <h3 className="text-xl font-bold mb-4">Change Username</h3>
             <div className="mb-4">
-              <label htmlFor="newUsername" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="newUsername" className="block text-sm font-medium mb-1">
                 New Username
               </label>
               <input
                 type="text"
                 id="newUsername"
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
                 placeholder="Enter new username"
@@ -212,7 +251,7 @@ const ChatWindow = ({socket}) => {
             <div className="flex justify-end space-x-3">
               <button
                 onClick={closeDialog}
-                className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 transition-colors duration-200"
+                className="px-4 py-2 bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200 text-sm font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75 transition-colors duration-200"
               >
                 Cancel
               </button>
@@ -237,39 +276,30 @@ const ChatWindow = ({socket}) => {
             } mb-1 items-center`}
           >
             <div
-              className={`max-w-xs py-2 px-3 rounded-lg ${
+              className={`max-w-[75%] sm:max-w-xs py-2 px-3 rounded-lg ${ 
                 message.sender === user._id
                   ? "bg-blue-500 text-white"
-                  : "bg-gray-100 text-gray-800"
-              } relative`}
+                  : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100"
+              } relative break-words`}
             >
-              {message.type === "image" && message.imageUrl && (
+              {message.messageType === "image" && message.imageUrl && (
                 <div className="mb-2">
                   <img
                     src={message.imageUrl}
                     alt="Sent image"
-                    className="max-w-full h-auto rounded-md object-cover bg-white"
+                    className="max-w-full h-auto rounded-md object-cover bg-white dark:bg-gray-600"
                     onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/150x100/eeeeee/333333?text=Image+Error'; }}
                   />
                 </div>
               )}
-              {message.text && (
-                <div className={message.messageType === "image" ? "mt-2" : ""}>
-                    {message.isAudio ? (
-                        <div className="flex items-center">
-                            <span className="mr-2">{message.text}</span>
-                            <button className="p-2 bg-blue-700 text-white rounded-full">
-                                ▶
-                            </button>
-                        </div>
-                    ) : (
-                        message.text
-                    )}
+              {message.text && ( 
+                <div className={message.messageType === "image" ? "mt-2 text-sm" : "text-sm sm:text-base"}> {/* Responsive font size */}
+                  {message.text}
                 </div>
               )}
             </div>
             {
-            message.sender===user._id && 
+            message.sender === user._id &&
             <div className="text-xs text-white-300 rounded-full m-1">
               {getStatusComponent(message.status)}
             </div>
@@ -279,17 +309,17 @@ const ChatWindow = ({socket}) => {
       </div>
 
       {/* Input Box */}
-      <div className="p-4 border-t border-gray-200 flex flex-col">
+      <div className="p-4 border-t border-gray-300 dark:border-white/20 flex flex-col bg-white/90 dark:bg-black/90">
         {imagePreviewUrl && (
-          <div className="relative mb-4 p-2 border border-gray-300 rounded-lg bg-gray-50">
+          <div className="relative mb-4 p-2 border border-gray-600 rounded-lg bg-gray-450 dark:bg-gray-700">
             <img
               src={imagePreviewUrl}
               alt="Preview"
-              className="max-w-full h-70 object-contain mx-auto rounded-md"
+              className="max-w-full h-auto max-h-48 object-contain mx-auto rounded-md" // Constrained height for preview
             />
             <button
               onClick={clearSelectedImage}
-              className="absolute top-1 right-1 p-1 bg-white rounded-full shadow-md hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition"
+              className="absolute top-1 right-1 p-1 bg-white dark:bg-gray-800 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 transition"
               aria-label="Clear image"
             >
               <XCircle size={20} />
@@ -297,18 +327,18 @@ const ChatWindow = ({socket}) => {
           </div>
         )}
 
-        <div className="flex items-center">
+        <div className="flex items-center gap-2"> 
           <input
             type="file"
             id="fileUpload"
             className="hidden"
             name="fileUpload"
             onChange={handleFileChange}
-            accept="image/*" 
+            accept="image/*"
           />
           <label
             htmlFor="fileUpload"
-            className="mr-4 p-3 border border-transparent text-base font-medium rounded-full text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer transition ease-in-out duration-150 shadow-md"
+            className="flex-shrink-0 p-3 border border-transparent text-base font-medium rounded-full text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer transition ease-in-out duration-150 shadow-md"
             aria-label="Attach file"
           >
             <Paperclip size={20} />
@@ -321,11 +351,11 @@ const ChatWindow = ({socket}) => {
             }}
             type="text"
             placeholder={selectedImageFile ? "Add a caption..." : "Type a message..."}
-            className="flex-1 p-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white flex-1 p-2 border border-gray-500 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base" // Responsive font size
           />
           <button
             onClick={sendMessage}
-            className="ml-4 p-3 bg-blue-500 text-white rounded-full cursor-pointer hover:bg-blue-600 transition ease-in-out duration-150 shadow-md"
+            className="flex-shrink-0 p-3 bg-blue-500 text-white rounded-full cursor-pointer hover:bg-blue-600 transition ease-in-out duration-150 shadow-md"
             aria-label="Send message"
           >
             <SendHorizontal size={20} />

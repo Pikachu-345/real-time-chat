@@ -46,7 +46,7 @@ const Home = () => {
 
   return (
       <>
-        <div className="flex h-lvh">
+        <div className="flex h-screen w-screen">
           <SideBar />
           <ChatWindow socket={socketInstance}/>
         </div>
