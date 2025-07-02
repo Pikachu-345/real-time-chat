@@ -13,6 +13,7 @@ This is a full-stack real-time chat application built using the MERN stack (Mong
 * **Recoil State Management**: Provides predictable and efficient state management for a highly performant React frontend.
 * **Group Chats**: (Optional, can be extended) Create and manage dynamic group conversations.
 * **Private Chats**: Enjoy secure and seamless one-on-one messaging.
+* **Video/Audio Calling**: Enjoy one-to-one Video/Audio Calling with WebRTC. 
 * **Responsive UI**: Optimized for various screen sizes, ensuring a great user experience on any device.
 
 ---
@@ -36,6 +37,7 @@ This is a full-stack real-time chat application built using the MERN stack (Mong
 * **Recoil**: A cutting-edge state management library tailored for React applications.
 * **Axios**: A popular promise-based HTTP client for making efficient API requests.
 * **Tailwind CSS**: A utility-first CSS framework for rapid and responsive UI development.
+* **PeerJS**: A wrapper library for WebRTC.
 
 ---
 

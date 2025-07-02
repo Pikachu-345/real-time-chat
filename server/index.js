@@ -156,6 +156,13 @@ io.on('connection', async (socket) => {
         }
     });
 
+    socket.on('init:call', ({ uniqueKey, to, callType }) => {
+        const [senderSocketId] = sessionStore.findSocketsForUser(to);
+        // console.log("received data",{ uniqueKey, to });
+        io.to(senderSocketId).emit('incoming:call', { callType, uniqueKey, from: userId });
+        // console.log("sent data",{ uniqueKey, from: userId });
+    });
+
     socket.on('disconnect', (reason) => {
         sessionStore.removeSocket(socket.id);
     });

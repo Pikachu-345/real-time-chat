@@ -1,15 +1,15 @@
-import React, { useEffect, useRef, useState } from "react";
-import { useRecoilState, useRecoilValue } from "recoil";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useRecoilState, useRecoilValue, useSetRecoilState } from "recoil";
 import { activeChatId, chatState } from "../recoil/chats";
-import { SendHorizontal, Paperclip, XCircle, MoreVertical, ArrowLeft } from "lucide-react"; 
+import { callTriggerState, callType, currentCallUser, showCallDialog } from "../recoil/call";
+import { SendHorizontal, Paperclip, XCircle, MoreVertical, ArrowLeft, Video, Phone } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useUserActions } from "../utils/useUserActions";
 import useSocketEvents from "../socket_client/useSocketEvent";
 
-const ChatWindow = ({ socket }) => {
+const ChatWindow = ({ socket, chats }) => {
   const [showOptions, setShowOptions] = useState(false);
   const [activeChatIdState,setActiveChatId] = useRecoilState(activeChatId);
-  const chats = useRecoilValue(chatState);
   const [messageInput, setMessageInput] = useState("");
   const [newUsername, setNewUsername] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -18,6 +18,10 @@ const ChatWindow = ({ socket }) => {
   const { addMessage, changeName } = useUserActions();
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const triggerCall = useSetRecoilState(callTriggerState);
+  const setShowCallDialog=useSetRecoilState(showCallDialog);
+  const setCurrentCallUser = useSetRecoilState(currentCallUser);
+  const setCallType=useSetRecoilState(callType);
 
   useSocketEvents();
 
@@ -36,7 +40,7 @@ const ChatWindow = ({ socket }) => {
         socket.emit('read-message', lastMessage.id, lastMessage.sender);
       }
     }
-  }, [activeChat?.messages, user._id, socket]); 
+  }, [activeChat?.messages, user?._id, socket, activeChat?.id]);
 
   const readFileAsBase64 = (file) => {
     return new Promise((resolve, reject) => {
@@ -52,7 +56,7 @@ const ChatWindow = ({ socket }) => {
       case "sending":
         return <div className="h-2 w-2 rounded-full bg-red-500" />;
       case "sent":
-        return <div className="h-2 w-2 rounded-full bg-white border-1 border-gray-400" />; // Added border for visibility
+        return <div className="h-2 w-2 rounded-full bg-white border-1 border-gray-400" />;
       case "delivered":
         return <div className="h-2 w-2 rounded-full bg-gray-500" />;
       case "seen":
@@ -63,7 +67,7 @@ const ChatWindow = ({ socket }) => {
   };
 
   const sendMessage = async () => {
-    if ((messageInput.trim() || selectedImageFile) && activeChatIdState) { // Allow sending just an image
+    if ((messageInput.trim() || selectedImageFile) && activeChatIdState) { 
       const participants = activeChatIdState.split('_').filter(id => id !== user._id);
       const tempMessageId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       const payload = {
@@ -80,12 +84,18 @@ const ChatWindow = ({ socket }) => {
           payload.imageData = imageData;
         } catch (error) {
           console.error("Error reading image file:", error);
-          alert("Failed to read image file. Please try again."); // User-friendly alert
+          alert("Failed to read image file. Please try again.");
           return;
         }
       }
 
-      socket.emit("send-message", payload);
+      if (socket) { 
+        socket.emit("send-message", payload);
+      } else {
+        console.error("Socket not connected, cannot send message.");
+        alert("Cannot send message: Not connected to server.");
+        return;
+      }
 
       addMessage({
         chatId: activeChatIdState,
@@ -109,7 +119,7 @@ const ChatWindow = ({ socket }) => {
         setSelectedImageFile(file);
         setImagePreviewUrl(URL.createObjectURL(file));
       } else {
-        alert("Please select an image file."); 
+        alert("Please select an image file.");
         setSelectedImageFile(null);
         setImagePreviewUrl(null);
         event.target.value = null;
@@ -136,8 +146,15 @@ const ChatWindow = ({ socket }) => {
       changeName(activeChat.id, newUsername.trim());
       closeDialog();
     } else {
-      alert("Username cannot be empty!"); 
+      alert("Username cannot be empty!");
     }
+  };
+
+  const handleCall = (callType) => {
+    setCurrentCallUser(activeChat.name);
+    setCallType(callType);
+    setShowCallDialog(true);
+    triggerCall(true);
   };
 
   const openDialog = () => {
@@ -168,9 +185,9 @@ const ChatWindow = ({ socket }) => {
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-white/90 dark:bg-black/90 border-b border-gray-300 dark:border-gray-600 shadow-sm">
         <div className="flex items-center">
-          <button 
-            className="mr-2"
-            onClick={()=>setActiveChatId(null)}
+          <button
+            className="mr-2 lg:hidden" // Only show on smaller screens
+            onClick={() => setActiveChatId(null)}
           >
             <ArrowLeft className="text-white"/>
           </button>
@@ -193,18 +210,32 @@ const ChatWindow = ({ socket }) => {
           <div className="ml-4">
             <div className="text-lg font-semibold text-black dark:text-white">{activeChat.name}</div>
             <div className="text-sm text-gray-800 dark:text-gray-100 flex items-center gap-1">
-              <div className="w-1.5 h-1.5 border-1 rounded-full bg-green-500"></div> 
+              <div className="w-1.5 h-1.5 border-1 rounded-full bg-green-500"></div>
               {activeChat.status || 'Offline'}
             </div>
           </div>
         </div>
 
-        <button
-          onClick={openDialog}
-          className="hidden sm:block px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 transition-colors duration-200"
-        >
-          Change Username
-        </button>
+        <div className="flex gap-4">
+          <button
+            onClick={() => handleCall('video')}
+            className={`w-10 h-10 rounded-full bg-gray-400 flex items-center justify-center hover:bg-gray-500`}
+          >
+            <Video className="dark:text-white"/>
+          </button>
+          <button
+            onClick={() => handleCall('audio')}
+            className={`w-10 h-10 rounded-full bg-gray-400 flex items-center justify-center hover:bg-gray-500`}
+          >
+            <Phone className="dark:text-white"/>
+          </button>
+          <button
+            onClick={openDialog}
+            className="hidden sm:block px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75 transition-colors duration-200"
+          >
+            Change Username
+          </button>
+        </div>
 
         <div className="relative sm:hidden">
           <button
@@ -232,7 +263,7 @@ const ChatWindow = ({ socket }) => {
 
       {/* Username Change modal */}
       {isDialogOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"> {/* Fixed for full overlay */}
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm transform scale-100 transition-transform duration-300 ease-out text-gray-900 dark:text-gray-100">
             <h3 className="text-xl font-bold mb-4">Change Username</h3>
             <div className="mb-4">
@@ -267,7 +298,7 @@ const ChatWindow = ({ socket }) => {
       )}
 
       {/* Messages */}
-      <div className="flex-1 p-4 overflow-y-auto" ref={messagesEndRef}>
+      <div className="flex-1 p-4 overflow-y-auto bg-black/50" ref={messagesEndRef}>
         {activeChat.messages?.map((message) => (
           <div
             key={message.id}
@@ -276,13 +307,13 @@ const ChatWindow = ({ socket }) => {
             } mb-1 items-center`}
           >
             <div
-              className={`max-w-[75%] sm:max-w-xs py-2 px-3 rounded-lg ${ 
-                message.sender === user._id
+              className={`max-w-[75%] sm:max-w-xs py-2 px-3 rounded-lg ${
+                message.sender === user?._id // Use senderId
                   ? "bg-blue-500 text-white"
                   : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100"
               } relative break-words`}
             >
-              {message.messageType === "image" && message.imageUrl && (
+              {message.type === "image" && message.imageUrl && (
                 <div className="mb-2">
                   <img
                     src={message.imageUrl}
@@ -293,7 +324,7 @@ const ChatWindow = ({ socket }) => {
                 </div>
               )}
               {message.text && ( 
-                <div className={message.messageType === "image" ? "mt-2 text-sm" : "text-sm sm:text-base"}> {/* Responsive font size */}
+                <div className={message.type === "image" ? "mt-2 text-sm" : "text-sm sm:text-base"}> 
                   {message.text}
                 </div>
               )}
@@ -315,7 +346,7 @@ const ChatWindow = ({ socket }) => {
             <img
               src={imagePreviewUrl}
               alt="Preview"
-              className="max-w-full h-auto max-h-48 object-contain mx-auto rounded-md" // Constrained height for preview
+              className="max-w-full h-auto max-h-48 object-contain mx-auto rounded-md"
             />
             <button
               onClick={clearSelectedImage}
@@ -351,7 +382,7 @@ const ChatWindow = ({ socket }) => {
             }}
             type="text"
             placeholder={selectedImageFile ? "Add a caption..." : "Type a message..."}
-            className="bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white flex-1 p-2 border border-gray-500 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base" // Responsive font size
+            className="bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white flex-1 p-2 border border-gray-500 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
           />
           <button
             onClick={sendMessage}

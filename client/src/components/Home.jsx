@@ -2,12 +2,14 @@ import { useEffect } from "react";
 import useSocketConnection from "../socket_client/useSocketConnection";
 import ChatWindow from "./ChatWindow";
 import SideBar from "./Sidebar";
-import { useRecoilCallback, useSetRecoilState } from "recoil";
+import { useRecoilCallback, useRecoilValue, useSetRecoilState } from "recoil";
 import { chatState } from "../recoil/chats";
+import CallDialog from "./CallDialog";
 
 const Home = () => {
-  const socketInstance = useSocketConnection();
+  const socketInstance = useSocketConnection(); 
   const setChatState = useSetRecoilState(chatState);
+  const chats = useRecoilValue(chatState);
 
   useEffect(() => {
     try {
@@ -20,9 +22,6 @@ const Home = () => {
       console.error("Failed to load chat state from localStorage:", error);
     }
 
-    return () => {
-      saveChatStateOnUnload();
-    }
   }, [setChatState]);
 
   const saveChatStateOnUnload = useRecoilCallback(({ snapshot }) => () => {
@@ -48,7 +47,8 @@ const Home = () => {
       <>
         <div className="flex h-screen w-screen">
           <SideBar />
-          <ChatWindow socket={socketInstance}/>
+          <ChatWindow socket={socketInstance} chats={chats}/>
+          <CallDialog socket={socketInstance} chats={chats}/>
         </div>
       </>
   )
